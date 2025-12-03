@@ -1,0 +1,129 @@
+# main.ino
+#include <Wire.h>
+#include <ESP8266WiFi.h>
+#include <SoftwareSerial.h>
+#include "ThingSpeak.h"
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+#define mot1 14
+#define mot2 12
+
+String command;
+
+const char* ssid = "project";
+const char* password = "123456789";
+
+WiFiClient client;
+
+unsigned long myChannelNumber = 2370547;
+const char* myWriteAPIKey = "B7ZTS3X15IYJB9IF";
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(mot1, OUTPUT);
+  pinMode(mot2, OUTPUT);
+  delay(200);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;);
+  }
+
+  delay(1000);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.println("IOT POWERED GRID MANAGEMENT");
+  display.display();
+  delay(2000);
+
+  WiFi.mode(WIFI_STA);
+  ThingSpeak.begin(client);
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.print("Attempting to connect");
+    while (WiFi.status() != WL_CONNECTED) {
+      WiFi.begin(ssid, password);
+      delay(5000);
+    }
+  }
+
+  digitalWrite(mot1, HIGH);
+  digitalWrite(mot2, LOW);
+}
+
+char x, y;
+
+void loop() {
+  while (Serial.available()) {
+    command = Serial.readString();
+
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.setCursor(10, 0);
+    display.println("Instruction");
+    display.println(command);
+    display.display();
+    delay(2000);
+
+    if (command == "*bulb on#") {
+      display.setCursor(0, 20);
+      display.println("BULB ON");
+      display.display();
+
+      digitalWrite(mot1, HIGH);
+      delay(1500);
+
+      ThingSpeak.setField(1, '1');
+      ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+
+    } else if (command == "*fan on#") {
+      y = 1;
+      display.setCursor(0, 20);
+      display.println("FAN ON");
+      display.display();
+
+      digitalWrite(mot2, HIGH);
+      delay(1500);
+
+      ThingSpeak.setField(2, '1');
+      ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+
+    } else if (command == "*fan off#") {
+      y = 0;
+      display.setCursor(0, 20);
+      display.println("FAN OFF");
+      display.display();
+
+      digitalWrite(mot2, LOW);
+      delay(1500);
+
+      ThingSpeak.setField(2, '0');
+      ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+
+    } else if (command == "*bulb off#") {
+      x = 0;
+      display.setCursor(0, 20);
+      display.println("BULB OFF");
+      display.display();
+
+      digitalWrite(mot1, LOW);
+      delay(1500);
+
+      ThingSpeak.setField(1, '0');
+      ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+    }
+
+    command = "";
+    delay(1000);
+  }
+}
